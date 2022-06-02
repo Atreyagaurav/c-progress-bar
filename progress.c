@@ -5,6 +5,7 @@
  */
 #include <stddef.h>
 #include <stdio.h>
+#include <string.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdlib.h>
@@ -53,6 +54,8 @@ static const char * subprogress_blocks[] = { " ",
 struct progress_info {
   int initialized;
   int numprocess;
+  int statuslen;
+  char *status;
   char** label;
   double* percentage;
   uint64_t* start;
@@ -142,9 +145,11 @@ void print_single_progress(int num) {
 
 void print_multiple_progress();
 
-void init_progress_bars(int num){
+void init_progress_bars(int num, int status_len){
   global_pi.initialized = 0;
   global_pi.numprocess = num;
+  global_pi.statuslen = status_len;
+  global_pi.status = malloc(sizeof(char)*(status_len+1));
   global_pi.label = malloc(sizeof(char*)*num);
   global_pi.percentage = malloc(sizeof(double*)*num);
   global_pi.start = malloc(sizeof(uint64_t*)*num);
@@ -158,6 +163,24 @@ void set_progress_bar(int index, char* label, double percentage, uint64_t start)
 
 void update_progress_bar(int index, double percentage){
   *(global_pi.percentage + index) = percentage;
+}
+
+void update_status(char *status){
+  int i, len;
+  len = strlen(status);
+  for (i=0; i < len && i < global_pi.statuslen; i++){
+    *(global_pi.status+i) = *(status+i);
+  }
+  if (len > global_pi.statuslen){
+    /* the numbers here are temporary. For now I want to see the filename and extension. */
+    strcpy(global_pi.status + global_pi.statuslen - 7, "...");
+    for (i=0; i < 5; i++){
+      *(global_pi.status + global_pi.statuslen - i) = *(status + len - i);
+    }
+    *(global_pi.status + global_pi.statuslen) = '\0';
+  }else{
+    *(global_pi.status + len) = '\0';
+  }
 }
 
 void free_progress_bars(int num){
@@ -179,6 +202,7 @@ void print_multiple_progress(){
     print_single_progress(i);
     printf("\n");
   }
+  printf("%s", global_pi.status);
 }
 
 
@@ -187,12 +211,16 @@ int main(int argc, char **argv) {
     double amount = 0.0;
     uint64_t start = get_timestamp();
 
-    init_progress_bars(2);
+    init_progress_bars(2, 100);
     set_progress_bar(0, "\e[33mTest\e[0m", 0.0, start);
     set_progress_bar(1, "Test2", 0.0, start);
     for (i = 0; i < 10000; i++) {
         amount += 0.01;
 	update_progress_bar(0, amount);
+	update_progress_bar(1, amount/2);
+	update_status("Hello there how are you guys right now, are you ok?"
+		      " Do you need some help? Let's see. what do you need"
+		      " right now?");
         print_multiple_progress();
         usleep(20000 / (i + 1));
     }
