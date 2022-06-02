@@ -162,8 +162,8 @@ void free_progress_bars(int num){
 void print_multiple_progress(){
   int i;
   if (global_pi.initialized){
-    /* goto previous lines */
-    printf("\x1b[%dA", global_pi.numprocess);
+    /* goto previous lines to reach start line*/
+    printf("\x1b[%dA", global_pi.numprocess+1);
   }else{
     global_pi.initialized = 1;
   }
@@ -171,7 +171,7 @@ void print_multiple_progress(){
     print_single_progress(i);
     printf("\n");
   }
-  printf("%s", global_pi.status);
+  printf("%s\n", global_pi.status);
 }
 
 
