@@ -1,0 +1,21 @@
+* Introduction
+This is a simple library I made because I needed to show multiple progress bars, I know it might be easy to use something already there but I just modified one in C I found that was simple enough.
+
+I've made it in a way it can also be used from python. In future my plan is to make it support multiprocessing progress. That's why I made one global progress state, let's see.
+
+[[./example-2.gif]]
+
+* Originally from:
+https://github.com/c-progress-bar/c-progress-bar
+
+This is a dead simple progress bar implementation for C. 
+It has no extra dependencies (like libtermcap / ncurses) 
+and should be easily dropped into any project. As an added
+bonus, it'll report time ETAs for long running jobs.
+
+
+The main interface is `print_progress`, which takes in a percentage
+and a timestamp. Call it repeatedly in a loop to make the progress
+bar grow across the screen.
+
+[[./example.gif]]
