@@ -105,19 +105,24 @@ void print_single_progress(int num) {
 }
 
 
-void init_progress_bars(int num, int status_len, int label_len){
+void init_progress_bars(int bar_num, int status_num, int label_len, int status_len){
   int i;
   global_pi.initialized = 0;
-  global_pi.numprocess = num;
+  global_pi.bars_count = bar_num;
   global_pi.statuslen = status_len;
   global_pi.labellen = label_len;
-  global_pi.status = (char*)(malloc(sizeof(char)*(status_len+1)));
-  global_pi.label = (char**)malloc(sizeof(char*)*num);
-  for (i=0; i< num; i++){
+  global_pi.status = (char**)malloc(sizeof(char*)*bar_num);
+  global_pi.status_count = status_num;
+  for (i=0; i< status_num; i++){
+    *(global_pi.status+i) = (char*)malloc(sizeof(char)*status_len);
+    **(global_pi.status+i) = '\0';
+  }
+  global_pi.label = (char**)malloc(sizeof(char*)*bar_num);
+  for (i=0; i< bar_num; i++){
     *(global_pi.label+i) = (char*)malloc(sizeof(char)*label_len);
   }
-  global_pi.percentage = (double*)malloc(sizeof(double)*num);
-  global_pi.start = (uint64_t*)malloc(sizeof(uint64_t)*num);
+  global_pi.percentage = (double*)malloc(sizeof(double)*bar_num);
+  global_pi.start = (uint64_t*)malloc(sizeof(uint64_t)*bar_num);
 }
 
 void start_progress_bar(int index, char* label){
@@ -130,27 +135,27 @@ void update_progress_bar(int index, double percentage){
   *(global_pi.percentage + index) = percentage;
 }
 
-void update_status(char *status){
+void update_status(int index, char *status){
   int i, len;
   len = strlen(status);
   for (i=0; i < len && i < global_pi.statuslen; i++){
-    *(global_pi.status+i) = *(status+i);
+    *(*(global_pi.status + index)+i) = *(status+i);
   }
   if (len > global_pi.statuslen){
     /* the numbers here are temporary. For now I want to see the filename and extension. */
-    strcpy(global_pi.status + global_pi.statuslen - 7, "...");
+    strcpy(*(global_pi.status + index) + global_pi.statuslen - 7, "...");
     for (i=0; i < 5; i++){
-      *(global_pi.status + global_pi.statuslen - i) = *(status + len - i);
+      *(*(global_pi.status + index) + global_pi.statuslen - i) = *(status + len - i);
     }
-    *(global_pi.status + global_pi.statuslen) = '\0';
+    *(*(global_pi.status + index) + global_pi.statuslen) = '\0';
   }else{
-    *(global_pi.status + len) = '\0';
+    *(*(global_pi.status + index) + len) = '\0';
   }
 }
 
 void free_progress_bars(int num){
   int i;
-  global_pi.numprocess = 0;
+  global_pi.bars_count = 0;
   for (i=0; i< num; i++){
     free(*(global_pi.label+i));
   }
@@ -163,21 +168,25 @@ void print_multiple_progress(){
   int i;
   if (global_pi.initialized){
     /* goto previous lines to reach start line*/
-    printf("\x1b[%dA", global_pi.numprocess+1);
+    printf("\x1b[%dA", global_pi.bars_count +
+	   global_pi.status_count);
   }else{
     global_pi.initialized = 1;
   }
-  for (i=0; i< global_pi.numprocess; i++){
+  for (i=0; i< global_pi.bars_count; i++){
     print_single_progress(i);
     printf("\n");
   }
-  printf("\x1b[K%s\n", global_pi.status);
+  for (i=0; i< global_pi.status_count; i++){
+    printf("\x1b[K%s\n", *(global_pi.status+i));
+  }
 }
 
 void print_line(char *line){
   if (global_pi.initialized){
     /* goto previous lines to reach start line*/
-    printf("\x1b[%dA", global_pi.numprocess+1);
+    printf("\x1b[%dA", global_pi.bars_count +
+	   global_pi.status_count);
     global_pi.initialized = 0;
   }
   printf("%s\x1b[K\n", line);
@@ -189,7 +198,7 @@ int main(int argc, char **argv) {
     int i;
     double amount = 0.0;
 
-    init_progress_bars(2, 100, 20);
+    init_progress_bars(2, 2, 20, 100);
     start_progress_bar(0, "\e[33mTest\e[0m");
     start_progress_bar(1, "Test2");
     for (i = 0; i < 10000; i++) {
@@ -198,8 +207,9 @@ int main(int argc, char **argv) {
 	update_progress_bar(1, amount/2);
 	if (i % 1000 == 0){
 	  print_line("Test Test Test:");
+	  update_status(1, "Hello there");
 	}
-	update_status("Helo there how are you guys right now, are you ok?"
+	update_status(0, "Helo there how are you guys right now, are you ok?"
 		      " Do you need some help? Let's see. what do you need"
 		      " right now?");
         print_multiple_progress();

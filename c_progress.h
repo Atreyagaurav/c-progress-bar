@@ -32,9 +32,10 @@
 
 struct progress_info {
   int initialized;
-  int numprocess;
+  int bars_count;
   int statuslen;
-  char *status;
+  int status_count;
+  char **status;
   int labellen;
   char** label;
   double* percentage;
@@ -52,13 +53,13 @@ void print_single_progress(int num);
 
 void print_multiple_progress();
 
-void init_progress_bars(int num, int status_len, int label_len);
+void init_progress_bars(int num, int status_num, int label_len, int status_len);
 
 void start_progress_bar(int index, char* label);
 
 void update_progress_bar(int index, double percentage);
 
-void update_status(char *status);
+void update_status(int index, char *status);
 
 void free_progress_bars(int num);
 
