@@ -76,7 +76,7 @@ void print_single_progress(int num) {
     uint64_t estimated_total = elapsed / (*(global_pi.percentage + num) / 100.0);
     uint64_t remaining = estimated_total - elapsed;
 
-    printf("\r  %s: %6.2f%% \t%s", *(global_pi.label + num), *(global_pi.percentage + num), BAR_START);
+    printf("\r\x1b[K  %s: %6.2f%% \t%s", *(global_pi.label + num), *(global_pi.percentage + num), BAR_START);
 
     for (i = 0; i < num_blocks; i++) {
         printf("%s", PROGRESS_BLOCK);
@@ -171,7 +171,17 @@ void print_multiple_progress(){
     print_single_progress(i);
     printf("\n");
   }
-  printf("%s\n", global_pi.status);
+  printf("\x1b[K%s\n", global_pi.status);
+}
+
+void print_line(char *line){
+  if (global_pi.initialized){
+    /* goto previous lines to reach start line*/
+    printf("\x1b[%dA", global_pi.numprocess+1);
+    global_pi.initialized = 0;
+  }
+  printf("%s\x1b[K\n", line);
+  print_multiple_progress();
 }
 
 
@@ -186,6 +196,9 @@ int main(int argc, char **argv) {
         amount += 0.01;
 	update_progress_bar(0, amount);
 	update_progress_bar(1, amount/2);
+	if (i % 1000 == 0){
+	  print_line("Test Test Test:");
+	}
 	update_status("Helo there how are you guys right now, are you ok?"
 		      " Do you need some help? Let's see. what do you need"
 		      " right now?");

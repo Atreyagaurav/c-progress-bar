@@ -63,3 +63,5 @@ void update_status(char *status);
 void free_progress_bars(int num);
 
 void print_multiple_progress();
+
+void print_line(char *line);
