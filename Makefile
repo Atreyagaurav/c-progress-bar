@@ -1,19 +1,22 @@
 CC = gcc
 CFLAGS = -Wall
-DEPS = progress.h
-OBJ = progress.o 
+DEPS = c_progress.h
+OBJ = c_progress.o 
 
 %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: progress lib
+all: c_progress lib
 
-progress: progress.o
+c_progress: c_progress.o
 	gcc $(CFLAGS) -o $@ $^
 
-lib: progress.o
-	swig -python progress.i
+lib: c_progress.o
+	swig -python c_progress.i
 	python setup.py build_ext --inplace
 
+pyinstall: lib
+	python setup.py install --user
+
 clean:
-	rm *.so progress
+	rm *.o rm *.so c_progress c_progress.py c_progress_wrap.c

@@ -1,4 +1,4 @@
-#include "progress.h"
+#include "c_progress.h"
 
 #ifdef VERTICAL
 static const char * subprogress_blocks[] = { " ",
