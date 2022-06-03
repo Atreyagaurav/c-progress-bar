@@ -30,9 +30,12 @@
 #define NUM_SUBBLOCKS (sizeof(subprogress_blocks) / sizeof(subprogress_blocks[0]))
 
 
+enum progress {START, PROGRESSING, COMPLETED};
+
 struct progress_info {
-  int initialized;
+  enum progress state;
   int bars_count;
+  enum progress *bars_progress;
   int statuslen;
   int status_count;
   char **status;
@@ -53,15 +56,21 @@ void print_single_progress(int num);
 
 void print_multiple_progress();
 
+void progress_bar_completed(int index);
+
 void init_progress_bars(int num, int status_num, int label_len, int status_len);
 
 void start_progress_bar(int index, char* label);
+
+int is_all_completed();
 
 void update_progress_bar(int index, double percentage);
 
 void update_status(int index, char *status);
 
-void free_progress_bars(int num);
+void free_progress_bars();
+
+int read_state_from_file(int index);
 
 void print_multiple_progress();
 

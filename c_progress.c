@@ -1,5 +1,6 @@
 #include "c_progress.h"
 #include <stdio.h>
+#include <unistd.h>
 
 #ifdef VERTICAL
 static const char * subprogress_blocks[] = { " ",
@@ -108,10 +109,16 @@ void print_single_progress(int num) {
 
 void init_progress_bars(int bar_num, int status_num, int label_len, int status_len){
   int i;
-  global_pi.initialized = 0;
+  global_pi.state = START;
   global_pi.bars_count = bar_num;
   global_pi.statuslen = status_len;
   global_pi.labellen = label_len;
+  
+  global_pi.bars_progress = (enum progress*)malloc(sizeof(enum progress)*bar_num);
+  for (i=0; i< bar_num; i++){
+    *(global_pi.bars_progress+i) = START;
+  }
+  
   global_pi.status = (char**)malloc(sizeof(char*)*bar_num);
   global_pi.status_count = status_num;
   for (i=0; i< status_num; i++){
@@ -134,6 +141,19 @@ void start_progress_bar(int index, char* label){
 
 void update_progress_bar(int index, double percentage){
   *(global_pi.percentage + index) = percentage;
+  char filename[20];
+  FILE *fp;
+  sprintf(filename, "/tmp/prg-%d", index);
+  fp = fopen(filename, "w");
+  fprintf(fp, "%.2f", percentage);
+  fclose(fp);
+}
+
+void progress_bar_completed(int index){
+  char filename[20];
+  sprintf(filename, "/tmp/prg-%d", index);
+  remove(filename);
+  *(global_pi.bars_progress+index) = COMPLETED;
 }
 
 void update_status(int index, char *status){
@@ -154,27 +174,69 @@ void update_status(int index, char *status){
   }
 }
 
-void free_progress_bars(int num){
+void free_progress_bars(){
   int i;
-  global_pi.bars_count = 0;
-  for (i=0; i< num; i++){
+  for (i=0; i< global_pi.bars_count; i++){
     free(*(global_pi.label+i));
   }
+  for (i=0; i< global_pi.status_count; i++){
+    free(global_pi.status+i);
+  }
+  for (i=0; i< global_pi.bars_count; i++){
+    free(global_pi.label+i);
+  }
+  free(global_pi.status);
+  free(global_pi.bars_progress);
   free(global_pi.label);
   free(global_pi.percentage);
   free(global_pi.start);
+  global_pi.bars_count = 0;
+}
+
+int read_state_from_file(int index){
+  if (index < 0){
+    int i;
+    for (i=0; i < global_pi.bars_count; i++){
+      read_state_from_file(i);
+    }
+  }
+  char filename[20];
+  FILE *fp;
+  sprintf(filename, "/tmp/prg-%d", index);
+  if (access(filename, F_OK) == 0){
+    fp = fopen(filename, "r");
+    fscanf(fp, "%lf", global_pi.percentage + index);
+    fclose(fp);
+    if (*(global_pi.percentage + index) == 100.0){
+      *(global_pi.bars_progress + index) = COMPLETED;
+    }
+    return 1;
+  }
+  *(global_pi.bars_progress+index) = COMPLETED;
+  return 0;
+}
+
+int is_all_completed(){
+  read_state_from_file(-1);
+  int i;
+  for (i=0; i < global_pi.bars_count; i++){
+    if (*(global_pi.bars_progress+i) != COMPLETED) return 0;
+  }
+  return 1;
 }
 
 void print_multiple_progress(){
   int i;
-  if (global_pi.initialized){
+  if (global_pi.state == START){
+    global_pi.state = PROGRESSING;
+  }else{
     /* goto previous lines to reach start line*/
     printf("\x1b[%dA", global_pi.bars_count +
 	   global_pi.status_count);
-  }else{
-    global_pi.initialized = 1;
   }
+
   for (i=0; i< global_pi.bars_count; i++){
+    read_state_from_file(i);
     print_single_progress(i);
     printf("\n");
   }
@@ -184,11 +246,11 @@ void print_multiple_progress(){
 }
 
 void print_line(char *line){
-  if (global_pi.initialized){
+  if (global_pi.state != START){
     /* goto previous lines to reach start line*/
     printf("\x1b[%dA", global_pi.bars_count +
 	   global_pi.status_count);
-    global_pi.initialized = 0;
+    global_pi.state = START;
   }
   printf("%s\x1b[K\n", line);
   print_multiple_progress();
@@ -218,4 +280,5 @@ int main(int argc, char **argv) {
       usleep(50000 / (i + j + 1));
     }
   }
+  free_progress_bars();
 }
