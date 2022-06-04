@@ -96,13 +96,15 @@ void print_single_progress(int num) {
     
     printf("%s\t", BAR_STOP);
 
-    if (*(global_pi.percentage + num) < 100.0) {
+    if (*(global_pi.bars_progress+num) == PROGRESSING) {
         printf("ETA: ");
         print_timedelta(remaining);
+    }else if (*(global_pi.bars_progress+num) == FAILED){
+        printf("×");
+    }else if (*(global_pi.bars_progress+num) == COMPLETED){
+        printf("✓"); 	/* delete til end of line */
     }
-    else {
-        printf("\x1b[K"); 	/* delete til end of line */
-    }
+    printf("\x1b[K");
     fflush(stdout);
 }
 
@@ -116,18 +118,18 @@ void init_progress_bars(int bar_num, int status_num, int label_len, int status_l
   
   global_pi.bars_progress = (enum progress*)malloc(sizeof(enum progress)*bar_num);
   for (i=0; i< bar_num; i++){
-    *(global_pi.bars_progress+i) = START;
+    *(global_pi.bars_progress + i) = START;
   }
   
   global_pi.status = (char**)malloc(sizeof(char*)*bar_num);
   global_pi.status_count = status_num;
   for (i=0; i< status_num; i++){
-    *(global_pi.status+i) = (char*)malloc(sizeof(char)*status_len);
-    **(global_pi.status+i) = '\0';
+    *(global_pi.status + i) = (char*)malloc(sizeof(char)*status_len);
+    **(global_pi.status + i) = '\0';
   }
   global_pi.label = (char**)malloc(sizeof(char*)*bar_num);
   for (i=0; i< bar_num; i++){
-    *(global_pi.label+i) = (char*)malloc(sizeof(char)*label_len);
+    *(global_pi.label + i) = (char*)malloc(sizeof(char)*label_len);
   }
   global_pi.percentage = (double*)malloc(sizeof(double)*bar_num);
   global_pi.start = (uint64_t*)malloc(sizeof(uint64_t)*bar_num);
@@ -136,6 +138,7 @@ void init_progress_bars(int bar_num, int status_num, int label_len, int status_l
 void start_progress_bar(int index, char* label){
   strcpy(*(global_pi.label + index), label);
   *(global_pi.percentage + index) = 0.0;
+  *(global_pi.bars_progress + index) = PROGRESSING;
   *(global_pi.start + index) = get_timestamp();
 }
 
@@ -176,18 +179,18 @@ void update_status(int index, char *status){
 
 void free_progress_bars(){
   int i;
+  free(global_pi.bars_progress);
+  
+  for (i=0; i< global_pi.status_count; i++){
+    free(*(global_pi.status+i));
+  }
+  free(global_pi.status);
+  
   for (i=0; i< global_pi.bars_count; i++){
     free(*(global_pi.label+i));
   }
-  for (i=0; i< global_pi.status_count; i++){
-    free(global_pi.status+i);
-  }
-  for (i=0; i< global_pi.bars_count; i++){
-    free(global_pi.label+i);
-  }
-  free(global_pi.status);
-  free(global_pi.bars_progress);
   free(global_pi.label);
+  
   free(global_pi.percentage);
   free(global_pi.start);
   global_pi.bars_count = 0;
@@ -207,8 +210,10 @@ int read_state_from_file(int index){
     fp = fopen(filename, "r");
     fscanf(fp, "%lf", global_pi.percentage + index);
     fclose(fp);
-    if (*(global_pi.percentage + index) == 100.0){
+    if (*(global_pi.percentage + index) >= 100.0){
       *(global_pi.bars_progress + index) = COMPLETED;
+    }else{
+      *(global_pi.bars_progress + index) = PROGRESSING;
     }
     return 1;
   }
@@ -240,7 +245,7 @@ void print_multiple_progress(){
     print_single_progress(i);
     printf("\n");
   }
-  for (i=0; i< global_pi.status_count; i++){
+  for (i=0; i < global_pi.status_count; i++){
     printf("\x1b[K%s\n", *(global_pi.status+i));
   }
 }
@@ -264,21 +269,25 @@ int main(int argc, char **argv) {
   char status1[100], status2[100];
   start_progress_bar(0, "\e[33mTest\e[0m");
   start_progress_bar(1, "Test2");
-  for (i = 0; i < 100; i++) {
-    update_progress_bar(1, i*1.0);
-    sprintf(status2, "Process %d of 1000", i+1);
+  for (i = 0; i < 2; i++) {
+    update_progress_bar(1, (i+1)*50.0);
+    sprintf(status2, "Process %d of 3", i+1);
     update_status(1, status2);
     if (i % 25 == 0){
       print_line("LOG: Some text log here.");
     }
-
-    for (j=0; j< 1000; j++){
-      update_progress_bar(0, j/10.0);
+    
+    for (j=0; j < 1000; j++){
+      update_progress_bar(0, (j+1)/10.0);
       sprintf(status1, "Subprocess %d of 1000", j+1);
       update_status(0, status1);
       print_multiple_progress();
-      usleep(50000 / (i + j + 1));
+      usleep(1000 / (i + j + 1));
+      
+      /* flag = is_all_completed(); */
+      /* fprintf(stderr, "%d %d %d\n", i, j, flag); */
     }
   }
+  /* printf("%d", is_all_completed()); */
   free_progress_bars();
 }

@@ -30,7 +30,7 @@
 #define NUM_SUBBLOCKS (sizeof(subprogress_blocks) / sizeof(subprogress_blocks[0]))
 
 
-enum progress {START, PROGRESSING, COMPLETED};
+enum progress {START, PROGRESSING, COMPLETED, FAILED};
 
 struct progress_info {
   enum progress state;
