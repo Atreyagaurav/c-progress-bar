@@ -1,14 +1,14 @@
 CC = gcc
 CFLAGS = -Wall
 DEPS = c_progress.h
-OBJ = c_progress.o 
+OBJ = c_progress.o demo.o
 
 %.o: %.c $(DEPS)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
-all: c_progress lib
+all: demo lib
 
-c_progress: c_progress.o
+demo: c_progress.o demo.o
 	gcc $(CFLAGS) -o $@ $^
 
 lib: c_progress.o

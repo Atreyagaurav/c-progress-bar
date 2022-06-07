@@ -29,6 +29,19 @@
 
 #define NUM_SUBBLOCKS (sizeof(subprogress_blocks) / sizeof(subprogress_blocks[0]))
 
+enum progress_status{QUEUED, INPROGRESS, CANCELLED, COMPLETED, FAILED};
+
+
+struct progress_bar {
+  enum progress_status status;
+  int labellen;
+  int index;
+  char* label;
+  double percentage;
+  uint64_t start;
+  uint64_t last_updated;
+};
+
 
 struct progress_info {
   int initialized;
@@ -36,10 +49,7 @@ struct progress_info {
   int statuslen;
   int status_count;
   char **status;
-  int labellen;
-  char** label;
-  double* percentage;
-  uint64_t* start;
+  struct progress_bar **bars;
 };
 
 
@@ -49,7 +59,7 @@ uint64_t get_timestamp(void);
 /* Helper function to print a usecs value as a duration. */
 void print_timedelta(uint64_t delta);
 
-void print_single_progress(int num);
+void print_bar(struct progress_bar* pb);
 
 void print_multiple_progress();
 
@@ -61,7 +71,7 @@ void update_progress_bar(int index, double percentage);
 
 void update_status(int index, char *status);
 
-void free_progress_bars(int num);
+void free_progress_bars();
 
 void print_multiple_progress();
 

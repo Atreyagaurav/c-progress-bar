@@ -23,6 +23,8 @@ static const char * subprogress_blocks[] = { " ",
 };
 #endif
 
+#define PERC_MAX 100.0
+
 struct progress_info global_pi;
 
 /* Helper function to get the current time in usecs past the epoch. */
@@ -44,40 +46,30 @@ void print_timedelta(uint64_t delta) {
     uint64_t mseconds = (delta / 100000) % 10;
 
     if (hours) {
-        printf("%luh %lum %lus    ", hours, minutes, seconds);
+        printf("%luh %lum %lus", hours, minutes, seconds);
     }
     else if (minutes) {
-        printf("%lum %02lus        ", minutes, seconds);
+        printf("%lum %02lus    ", minutes, seconds);
     }
     else {
-        printf("%lu.%lus           ", seconds, mseconds);
+        printf("%lu.%lus       ", seconds, mseconds);
     }
 }
 
-/*
- * Main interface function for updating the progress bar. This
- * function doesn't print a newline, so you can cal it iteratively
- * and have the progress bar grow across the screen. The caler can
- * print a newline when the're ready to go to a new line.
- *
- * percentage: a double between 0.0 and 100.0 indicating the progress.
-
- * start: usecs timestamp for when the task started, for calculating
- *        remaining time.
- */
-void print_single_progress(int num) {
+void print_bar(struct progress_bar* pb) {
     size_t i;
     size_t total_blocks = PROGRESS_BAR_WIDTH * NUM_SUBBLOCKS;
-    size_t done = *(global_pi.percentage + num) / 100 * total_blocks;
+    size_t done = pb->percentage / PERC_MAX * total_blocks;
     size_t num_blocks = done / NUM_SUBBLOCKS;
     size_t num_subblocks = done % NUM_SUBBLOCKS;
 
     uint64_t now = get_timestamp();
-    uint64_t elapsed = now - *(global_pi.start + num);
-    uint64_t estimated_total = elapsed / (*(global_pi.percentage + num) / 100.0);
+    uint64_t elapsed = now - pb->start;
+    uint64_t estimated_total = elapsed / pb->percentage * PERC_MAX;
     uint64_t remaining = estimated_total - elapsed;
 
-    printf("\r\x1b[K  %s: %6.2f%% \t%s", *(global_pi.label + num), *(global_pi.percentage + num), BAR_START);
+    printf("\r\x1b[K  %s: %6.2f%% \t%s",
+	   pb->label, pb->percentage * PERC_MAX, BAR_START);
 
     for (i = 0; i < num_blocks; i++) {
         printf("%s", PROGRESS_BLOCK);
@@ -95,7 +87,7 @@ void print_single_progress(int num) {
     
     printf("%s\t", BAR_STOP);
 
-    if (*(global_pi.percentage + num) < 100.0) {
+    if (pb->percentage < PERC_MAX) {
         printf("ETA: ");
         print_timedelta(remaining);
     }
@@ -105,35 +97,55 @@ void print_single_progress(int num) {
     fflush(stdout);
 }
 
+struct progress_bar* init_progress_bar(int index, int labellen){
+  struct progress_bar *pb;
+  pb = (struct progress_bar*)malloc(sizeof(struct progress_bar));
+  pb->label = (char*)malloc(sizeof(char)*labellen);
+  *(pb->label) = '\0';
+  pb->labellen = labellen;
+  pb->index = index;
+  pb->start = get_timestamp();
+  pb->last_updated = get_timestamp();
+  pb->status = QUEUED;
+  pb->percentage = 0.0;
+  return pb;
+}
+
+
+void free_progress_bar(struct progress_bar* pb){
+  free(pb->label);
+  free(pb);
+}
+
 
 void init_progress_bars(int bar_num, int status_num, int label_len, int status_len){
   int i;
   global_pi.initialized = 0;
   global_pi.bars_count = bar_num;
   global_pi.statuslen = status_len;
-  global_pi.labellen = label_len;
+  global_pi.bars = (struct progress_bar**)malloc(sizeof(struct progress_bar*)*bar_num);
+  for (i=0; i < bar_num; i++){
+    *(global_pi.bars+i) = init_progress_bar(i, label_len);
+  }
   global_pi.status = (char**)malloc(sizeof(char*)*bar_num);
   global_pi.status_count = status_num;
   for (i=0; i< status_num; i++){
     *(global_pi.status+i) = (char*)malloc(sizeof(char)*status_len);
     **(global_pi.status+i) = '\0';
   }
-  global_pi.label = (char**)malloc(sizeof(char*)*bar_num);
-  for (i=0; i< bar_num; i++){
-    *(global_pi.label+i) = (char*)malloc(sizeof(char)*label_len);
-  }
-  global_pi.percentage = (double*)malloc(sizeof(double)*bar_num);
-  global_pi.start = (uint64_t*)malloc(sizeof(uint64_t)*bar_num);
 }
 
 void start_progress_bar(int index, char* label){
-  strcpy(*(global_pi.label + index), label);
-  *(global_pi.percentage + index) = 0.0;
-  *(global_pi.start + index) = get_timestamp();
+  struct progress_bar *pb = (*(global_pi.bars + index));
+  strcpy(pb->label, label);
+  pb->percentage = 0.0;
+  pb->start = get_timestamp();
 }
 
 void update_progress_bar(int index, double percentage){
-  *(global_pi.percentage + index) = percentage;
+  struct progress_bar *pb = (*(global_pi.bars + index));
+  pb->percentage = percentage;
+  /* TODO send dbus signal for update */
 }
 
 void update_status(int index, char *status){
@@ -154,28 +166,35 @@ void update_status(int index, char *status){
   }
 }
 
-void free_progress_bars(int num){
+void free_progress_bars(){
   int i;
-  global_pi.bars_count = 0;
-  for (i=0; i< num; i++){
-    free(*(global_pi.label+i));
+  for (i=0; i< global_pi.bars_count; i++){
+    free_progress_bar(*(global_pi.bars + i));
   }
-  free(global_pi.label);
-  free(global_pi.percentage);
-  free(global_pi.start);
+  global_pi.bars_count = 0;
+
+  for (i=0; i< global_pi.status_count; i++){
+    free(global_pi.status + i);
+  }
+  free(global_pi.status);
+  global_pi.status_count = 0;
+}
+
+void goto_top_bar(){
+  /* goto previous lines to reach start line*/
+    printf("\x1b[%dA", global_pi.bars_count +
+	   global_pi.status_count);
 }
 
 void print_multiple_progress(){
   int i;
   if (global_pi.initialized){
-    /* goto previous lines to reach start line*/
-    printf("\x1b[%dA", global_pi.bars_count +
-	   global_pi.status_count);
+    goto_top_bar();
   }else{
     global_pi.initialized = 1;
   }
   for (i=0; i< global_pi.bars_count; i++){
-    print_single_progress(i);
+    print_bar(*(global_pi.bars+i));
     printf("\n");
   }
   for (i=0; i< global_pi.status_count; i++){
@@ -185,37 +204,10 @@ void print_multiple_progress(){
 
 void print_line(char *line){
   if (global_pi.initialized){
-    /* goto previous lines to reach start line*/
-    printf("\x1b[%dA", global_pi.bars_count +
-	   global_pi.status_count);
+    goto_top_bar();
     global_pi.initialized = 0;
   }
   printf("%s\x1b[K\n", line);
   print_multiple_progress();
 }
 
-
-int main(int argc, char **argv) {
-  int i, j;
-
-  init_progress_bars(2, 2, 20, 100);
-  char status1[100], status2[100];
-  start_progress_bar(0, "\e[33mTest\e[0m");
-  start_progress_bar(1, "Test2");
-  for (i = 0; i < 100; i++) {
-    update_progress_bar(1, i*1.0);
-    sprintf(status2, "Process %d of 1000", i+1);
-    update_status(1, status2);
-    if (i % 25 == 0){
-      print_line("LOG: Some text log here.");
-    }
-
-    for (j=0; j< 1000; j++){
-      update_progress_bar(0, j/10.0);
-      sprintf(status1, "Subprocess %d of 1000", j+1);
-      update_status(0, status1);
-      print_multiple_progress();
-      usleep(50000 / (i + j + 1));
-    }
-  }
-}
