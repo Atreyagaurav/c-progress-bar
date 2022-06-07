@@ -46,6 +46,8 @@ struct progress_bar {
 struct progress_info {
   int initialized;
   int bars_count;
+  int active_count;
+  int show_active_only;
   int statuslen;
   int status_count;
   char **status;
@@ -63,7 +65,7 @@ void print_bar(struct progress_bar* pb);
 
 void print_multiple_progress();
 
-void init_progress_bars(int num, int status_num, int label_len, int status_len);
+void init_progress_bars(int bar_num, int status_num, int label_len, int status_len, int show_active_only);
 
 void start_progress_bar(int index, char* label);
 
@@ -73,6 +75,6 @@ void update_status(int index, char *status);
 
 void free_progress_bars();
 
-void print_multiple_progress();
+void print_all_progress();
 
 void print_line(char *line);

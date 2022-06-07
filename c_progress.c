@@ -69,7 +69,7 @@ void print_bar(struct progress_bar* pb) {
     uint64_t remaining = estimated_total - elapsed;
 
     printf("\r\x1b[K  %s: %6.2f%% \t%s",
-	   pb->label, pb->percentage * PERC_MAX, BAR_START);
+	   pb->label, pb->percentage * 100.0 / PERC_MAX, BAR_START);
 
     for (i = 0; i < num_blocks; i++) {
         printf("%s", PROGRESS_BLOCK);
@@ -118,9 +118,10 @@ void free_progress_bar(struct progress_bar* pb){
 }
 
 
-void init_progress_bars(int bar_num, int status_num, int label_len, int status_len){
+void init_progress_bars(int bar_num, int status_num, int label_len, int status_len, int show_active_only){
   int i;
   global_pi.initialized = 0;
+  global_pi.show_active_only = show_active_only;
   global_pi.bars_count = bar_num;
   global_pi.statuslen = status_len;
   global_pi.bars = (struct progress_bar**)malloc(sizeof(struct progress_bar*)*bar_num);
@@ -140,11 +141,13 @@ void start_progress_bar(int index, char* label){
   strcpy(pb->label, label);
   pb->percentage = 0.0;
   pb->start = get_timestamp();
+  pb->status = INPROGRESS;
 }
 
 void update_progress_bar(int index, double percentage){
   struct progress_bar *pb = (*(global_pi.bars + index));
   pb->percentage = percentage;
+  pb->last_updated = get_timestamp();
   /* TODO send dbus signal for update */
 }
 
@@ -181,20 +184,26 @@ void free_progress_bars(){
 }
 
 void goto_top_bar(){
-  /* goto previous lines to reach start line*/
-    printf("\x1b[%dA", global_pi.bars_count +
-	   global_pi.status_count);
+  printf("\x1b[%dA", (global_pi.show_active_only ?
+	 global_pi.active_count : global_pi.bars_count)
+	 + global_pi.status_count);
 }
 
-void print_multiple_progress(){
+void print_all_progress(){
   int i;
   if (global_pi.initialized){
     goto_top_bar();
   }else{
     global_pi.initialized = 1;
   }
+  global_pi.active_count = 0;
   for (i=0; i< global_pi.bars_count; i++){
+    if (global_pi.show_active_only &&
+	(*(global_pi.bars+i))->status != INPROGRESS){
+      continue;
+    }
     print_bar(*(global_pi.bars+i));
+    global_pi.active_count += 1;
     printf("\n");
   }
   for (i=0; i< global_pi.status_count; i++){
@@ -202,12 +211,13 @@ void print_multiple_progress(){
   }
 }
 
+
 void print_line(char *line){
   if (global_pi.initialized){
     goto_top_bar();
     global_pi.initialized = 0;
   }
   printf("%s\x1b[K\n", line);
-  print_multiple_progress();
+  print_all_progress();
 }
 
