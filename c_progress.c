@@ -145,7 +145,7 @@ void start_progress_bar(int index, char* label){
 }
 
 void update_progress_bar(int index, double percentage){
-  struct progress_bar *pb = (*(global_pi.bars + index));
+  struct progress_bar *pb = *(global_pi.bars + index);
   pb->percentage = percentage;
   pb->last_updated = get_timestamp();
   /* TODO send dbus signal for update */
@@ -203,6 +203,7 @@ void print_all_progress(){
       continue;
     }
     print_bar(*(global_pi.bars+i));
+    /* fprintf(stderr, "%.2f\n", (*(global_pi.bars+i))->percentage); */
     global_pi.active_count += 1;
     printf("\n");
   }
