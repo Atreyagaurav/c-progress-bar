@@ -153,6 +153,9 @@ void update_progress_bar(int index, double percentage){
   struct progress_bar *pb = *(global_pi.bars + index);
   pb->percentage = percentage;
   pb->last_updated = get_timestamp();
+  if (percentage >= 100.0){
+    pb->status = COMPLETED;
+  }
   /* TODO send dbus signal for update */
 }
 
