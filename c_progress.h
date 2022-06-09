@@ -75,6 +75,8 @@ void update_status(int index, char *status);
 
 void free_progress_bars();
 
+struct progress_bar* get_progress_bar(int index);
+
 void print_all_progress();
 
 void print_line(char *line);

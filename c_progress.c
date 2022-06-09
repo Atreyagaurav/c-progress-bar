@@ -136,6 +136,11 @@ void init_progress_bars(int bar_num, int status_num, int label_len, int status_l
   }
 }
 
+struct progress_bar* get_progress_bar(int index){
+  struct progress_bar *pb = (*(global_pi.bars + index));
+  return pb;
+}
+
 void start_progress_bar(int index, char* label){
   struct progress_bar *pb = (*(global_pi.bars + index));
   strcpy(pb->label, label);
