@@ -169,10 +169,13 @@ void mark_bar_completed(int index){
   struct progress_bar *pb = *(global_pi.bars + index);
   if (pb->status != COMPLETED){
     pb->status = COMPLETED;
-    goto_top_bar();
-    print_bar(pb);
-    printf("\n");
-    global_pi.initialized = 0;
+    if (global_pi.show_active_only){
+      /* move the bar to the top if only showing the active ones. */
+      goto_top_bar();
+      print_bar(pb);
+      printf("\n");
+      global_pi.initialized = 0;
+    }
     print_all_progress();
   }
 }

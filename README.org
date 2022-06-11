@@ -3,7 +3,21 @@ This is a simple library I made because I needed to show multiple progress bars,
 
 I've made it in a way it can also be used from python. In future my plan is to make it support multiprocessing progress. That's why I made one global progress state, let's see.
 
+NOTE: As for supporting multiprocessing, I wrote another program [[https://github.com/Atreyagaurav/dmon][dmon]] which is for monitoring parallel processing, it uses this program for printing bars, while it uses dbus for communication of progress information between processes. Do look it up.
+
 [[./example-2.gif]]
+
+** Features
+- Multiple bars with their own progress metric
+- Multiple status lines you can update (passing strings)
+- Completed bars will be moved to the top if you only print active ones.
+- Completed bars will show the time of completion
+
+
+** Planned Features
+- Dynamically increase number of bars/status lines
+
+
 
 * Originally from:
 https://github.com/c-progress-bar/c-progress-bar
