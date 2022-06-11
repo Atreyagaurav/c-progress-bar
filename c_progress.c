@@ -1,5 +1,6 @@
 #include "c_progress.h"
 #include <stdio.h>
+#include <time.h>
 
 #ifdef VERTICAL
 static const char * subprogress_blocks[] = { " ",
@@ -49,10 +50,10 @@ void print_timedelta(uint64_t delta) {
         printf("%luh %lum %lus", hours, minutes, seconds);
     }
     else if (minutes) {
-        printf("%lum %02lus    ", minutes, seconds);
+        printf("%lum %02lus", minutes, seconds);
     }
     else {
-        printf("%lu.%lus       ", seconds, mseconds);
+        printf("%lu.%lus", seconds, mseconds);
     }
 }
 
@@ -87,13 +88,22 @@ void print_bar(struct progress_bar* pb) {
     
     printf("%s\t", BAR_STOP);
 
-    if (pb->percentage < PERC_MAX) {
-        printf("ETA: ");
-        print_timedelta(remaining);
+    if (pb->status == INPROGRESS) {
+      printf("ETA: ");
+      print_timedelta(remaining);
     }
-    else {
-        printf("\x1b[K"); 	/* delete til end of line */
+    else if(pb->status == COMPLETED) {
+      const time_t s = (int)(now/1e6);
+      struct tm * current_time;
+      current_time = localtime(&s);
+ 
+      printf("Cmpl: ");
+      printf("%02d:%02d:%02d",
+	     current_time->tm_hour,
+	     current_time->tm_min,
+	     current_time->tm_sec);
     }
+    printf("\x1b[K"); 	/* delete til end of line */
     fflush(stdout);
 }
 
@@ -153,7 +163,18 @@ void update_progress_bar(int index, double percentage){
   struct progress_bar *pb = *(global_pi.bars + index);
   pb->percentage = percentage;
   pb->last_updated = get_timestamp();
-  /* TODO send dbus signal for update */
+}
+
+void mark_bar_completed(int index){
+  struct progress_bar *pb = *(global_pi.bars + index);
+  if (pb->status != COMPLETED){
+    pb->status = COMPLETED;
+    goto_top_bar();
+    print_bar(pb);
+    printf("\n");
+    global_pi.initialized = 0;
+    print_all_progress();
+  }
 }
 
 void update_status(int index, char *status){
@@ -189,9 +210,15 @@ void free_progress_bars(){
 }
 
 void goto_top_bar(){
-  printf("\x1b[%dA", (global_pi.show_active_only ?
-	 global_pi.active_count : global_pi.bars_count)
-	 + global_pi.status_count);
+  int i, lines;
+  lines = (global_pi.show_active_only ?
+	       global_pi.active_count : global_pi.bars_count)
+    + global_pi.status_count;
+
+  printf("\x1b[K");
+  for (i=0; i<lines; i++){
+    printf("\x1b[1A\x1b[K"); 	/* move up and clear line. */
+  }
 }
 
 void print_all_progress(){

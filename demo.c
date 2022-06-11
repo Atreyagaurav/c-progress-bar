@@ -14,31 +14,38 @@ int main(int argc, char **argv) {
       update_progress_bar(0, prog0);
     }else{
       update_progress_bar(0, 100.0);
+      mark_bar_completed(0);
     }
-    sprintf(status1, "Subprocess %d of 10", j+1);
+    sprintf(status1, "Subprocess %d of 100", j+1);
     update_status(0, status1);
     print_all_progress();
     usleep(50000 / (j + 1));
   }
+  mark_bar_completed(0);
 
   start_progress_bar(2, "Test-2");
   for (i=0; i < 5; i++){
-    if (i == 3){
+    if (i == 1){
       start_progress_bar(1, "Test-1");
+    }else if (i == 4){
+      mark_bar_completed(2);
     }
     for (j=0; j < 100; j++){
-      prog2 = (i*100+j+1)/5.0;
-      prog1 = ((i-3)*100+j+1)/2.0;
-      if (i > 2){
+      prog2 = (i*100+j+1)/4.0;
+      prog1 = ((i-1)*100+j+1)/4.0;
+      if (i > 0){
 	update_progress_bar(1, prog1);
-	sprintf(status2, "Subprocess %d of %d", (i-3)*100+j+1, 200);
+	sprintf(status2, "Subprocess %d of %d", (i-1)*100+j+1, 400);
 	update_status(1, status2);
       }
-      update_progress_bar(2, prog2);
-      sprintf(status1, "Subprocess %d of %d", i*100+j+1, 500);
+      if (i < 4){
+	update_progress_bar(2, prog2);
+      }
+      sprintf(status1, "Subprocess %d of %d", i*100+j+1, 400);
       update_status(0, status1);
       print_all_progress();
       usleep(200000 / (j + 1));
     }
   }
+  mark_bar_completed(1);
 }
